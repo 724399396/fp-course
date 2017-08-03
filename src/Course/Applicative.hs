@@ -49,7 +49,7 @@ infixl 4 <*>
   -> f a
   -> f b
 (<$$>) =
-  error "todo: Course.Applicative#(<$$>)"
+  (<$>)
 
 -- | Insert into ExactlyOne.
 --
@@ -62,13 +62,13 @@ instance Applicative ExactlyOne where
     a
     -> ExactlyOne a
   pure =
-    error "todo: Course.Applicative pure#instance ExactlyOne"
+    ExactlyOne
   (<*>) :: 
     ExactlyOne (a -> b)
     -> ExactlyOne a
     -> ExactlyOne b
   (<*>) =
-    error "todo: Course.Applicative (<*>)#instance ExactlyOne"
+    mapExactlyOne . runExactlyOne
 
 -- | Insert into a List.
 --
@@ -80,14 +80,14 @@ instance Applicative List where
   pure ::
     a
     -> List a
-  pure =
-    error "todo: Course.Applicative pure#instance List"
+  pure x =
+    x :. Nil
   (<*>) ::
     List (a -> b)
     -> List a
     -> List b
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance List"
+  ff <*> fa =
+    flatMap (\f -> flatMap (\x -> pure $ f x) fa) ff
 
 -- | Insert into an Optional.
 --
