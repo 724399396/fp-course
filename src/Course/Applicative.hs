@@ -87,7 +87,7 @@ instance Applicative List where
     -> List a
     -> List b
   ff <*> fa =
-    flatMap (\f -> flatMap (\x -> pure $ f x) fa) ff
+    flatMap (\f -> flatMap (\a -> pure $ f a) fa) ff
 
 -- | Insert into an Optional.
 --
@@ -106,13 +106,13 @@ instance Applicative Optional where
     a
     -> Optional a
   pure =
-    error "todo: Course.Applicative pure#instance Optional"
+    Full
   (<*>) ::
     Optional (a -> b)
     -> Optional a
     -> Optional b
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance Optional"
+  opf <*> oa =
+    bindOptional (\f -> bindOptional (\a -> pure $ f a) oa) opf
 
 -- | Insert into a constant function.
 --
@@ -137,13 +137,13 @@ instance Applicative ((->) t) where
     a
     -> ((->) t a)
   pure =
-    error "todo: Course.Applicative pure#((->) t)"
+    const
   (<*>) ::
     ((->) t (a -> b))
     -> ((->) t a)
     -> ((->) t b)
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance ((->) t)"
+  ff <*> fa =
+    (\x -> ff(x)(fa(x)))
 
 
 -- | Apply a binary function in the environment.
@@ -171,8 +171,8 @@ lift2 ::
   -> f a
   -> f b
   -> f c
-lift2 =
-  error "todo: Course.Applicative#lift2"
+lift2 f a b =
+  f <$> a <*> b
 
 -- | Apply a ternary function in the environment.
 --
@@ -203,8 +203,8 @@ lift3 ::
   -> f b
   -> f c
   -> f d
-lift3 =
-  error "todo: Course.Applicative#lift3"
+lift3 f a b c =
+  (lift2 f a b) <*> c
 
 -- | Apply a quaternary function in the environment.
 --
@@ -236,8 +236,8 @@ lift4 ::
   -> f c
   -> f d
   -> f e
-lift4 =
-  error "todo: Course.Applicative#lift4"
+lift4 f a b c d =
+  (lift3 f a b c) <*> d
 
 -- | Apply, discarding the value of the first argument.
 -- Pronounced, right apply.
@@ -262,8 +262,8 @@ lift4 =
   f a
   -> f b
   -> f b
-(*>) =
-  error "todo: Course.Applicative#(*>)"
+fa *> fb =
+  (flip const) <$> fa <*> fb
 
 -- | Apply, discarding the value of the second argument.
 -- Pronounced, left apply.
@@ -288,8 +288,8 @@ lift4 =
   f b
   -> f a
   -> f b
-(<*) =
-  error "todo: Course.Applicative#(<*)"
+fb <* fa =
+  const <$> fb <*> fa
 
 -- | Sequences a list of structures to a structure of list.
 --
@@ -312,7 +312,7 @@ sequence ::
   List (f a)
   -> f (List a)
 sequence =
-  error "todo: Course.Applicative#sequence"
+  foldRight (\x acc -> lift2 (:.) x acc)  (pure Nil)
 
 -- | Replicate an effect a given number of times.
 --
@@ -335,8 +335,8 @@ replicateA ::
   Int
   -> f a
   -> f (List a)
-replicateA =
-  error "todo: Course.Applicative#replicateA"
+replicateA n fa =
+  sequence $ replicate n fa
 
 -- | Filter a list with a predicate that produces an effect.
 --
@@ -363,8 +363,8 @@ filtering ::
   (a -> f Bool)
   -> List a
   -> f (List a)
-filtering =
-  error "todo: Course.Applicative#filtering"
+filtering fil l =
+  flatten <$> (sequence $ (\x -> (\p -> if p then (x :. Nil) else Nil) <$> (fil x)) <$> l)
 
 -----------------------
 -- SUPPORT LIBRARIES --

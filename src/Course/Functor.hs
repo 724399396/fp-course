@@ -83,7 +83,7 @@ instance Functor ((->) t) where
     (a -> b)
     -> ((->) t a)
     -> ((->) t b)
-  f <$> g = (\x -> f (g x))
+  f <$> g = (\x -> f $ g x)
 
 
 -- | Anonymous map. Maps a constant value on a functor.
@@ -99,8 +99,8 @@ instance Functor ((->) t) where
   a
   -> f b
   -> f a
-x <$ f =
-  (const x) <$> f
+a <$ f =
+  (const a) <$> f
 
 -- | Anonymous map producing unit value.
 --

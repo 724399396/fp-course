@@ -8,7 +8,6 @@ module Course.Monad where
 import Course.Applicative
 import Course.Core
 import Course.ExactlyOne
-import Course.Functor
 import Course.List
 import Course.Optional
 import qualified Prelude as P((=<<))
@@ -63,8 +62,8 @@ infixr 1 =<<
   f (a -> b)
   -> f a
   -> f b
-(<**>) =
-  error "todo: Course.Monad#(<**>)"
+(<**>) mf ma =
+  (\f -> (\a -> pure $ f a) =<< ma ) =<< mf
 
 infixl 4 <**>
 
@@ -77,8 +76,8 @@ instance Monad ExactlyOne where
     (a -> ExactlyOne b)
     -> ExactlyOne a
     -> ExactlyOne b
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance ExactlyOne"
+  (=<<) = bindExactlyOne
+
 
 -- | Binds a function on a List.
 --
@@ -89,8 +88,8 @@ instance Monad List where
     (a -> List b)
     -> List a
     -> List b
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance List"
+  f =<< fa =
+    flatten $ map f fa
 
 -- | Binds a function on an Optional.
 --
@@ -102,7 +101,7 @@ instance Monad Optional where
     -> Optional a
     -> Optional b
   (=<<) =
-    error "todo: Course.Monad (=<<)#instance Optional"
+    bindOptional
 
 -- | Binds a function on the reader ((->) t).
 --
@@ -113,8 +112,8 @@ instance Monad ((->) t) where
     (a -> ((->) t b))
     -> ((->) t a)
     -> ((->) t b)
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance ((->) t)"
+  f =<< fa =
+    (\x -> f(fa(x))(x))
 
 -- | Flattens a combined structure to a single structure.
 --
@@ -133,8 +132,8 @@ join ::
   Monad f =>
   f (f a)
   -> f a
-join =
-  error "todo: Course.Monad#join"
+join ffa =
+  id =<< ffa
 
 -- | Implement a flipped version of @(=<<)@, however, use only
 -- @join@ and @(<$>)@.
@@ -148,7 +147,7 @@ join =
   -> (a -> f b)
   -> f b
 (>>=) =
-  error "todo: Course.Monad#(>>=)"
+  flip (=<<)
 
 infixl 1 >>=
 
@@ -163,8 +162,8 @@ infixl 1 >>=
   -> (a -> f b)
   -> a
   -> f c
-(<=<) =
-  error "todo: Course.Monad#(<=<)"
+f <=< g =
+  (\a -> f =<< (g a))
 
 infixr 1 <=<
 
