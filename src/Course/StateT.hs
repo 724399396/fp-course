@@ -250,8 +250,8 @@ data Logger l a =
 -- >>> (+3) <$> Logger (listh [1,2]) 3
 -- Logger [1,2] 6
 instance Functor (Logger l) where
-  (<$>) =
-    error "todo: Course.StateT (<$>)#instance (Logger l)"
+  f <$> (Logger x a) =
+    (Logger x (f a))
 
 -- | Implement the `Applicative` instance for `Logger`.
 --
@@ -262,9 +262,9 @@ instance Functor (Logger l) where
 -- Logger [1,2,3,4] 10
 instance Applicative (Logger l) where
   pure =
-    error "todo: Course.StateT pure#instance (Logger l)"
-  (<*>) =
-    error "todo: Course.StateT (<*>)#instance (Logger l)"
+    Logger Nil
+  (Logger l1 f) <*> (Logger l2 x) =
+    Logger (l1 ++ l2) (f x)
 
 -- | Implement the `Monad` instance for `Logger`.
 -- The `bind` implementation must append log values to maintain associativity.
@@ -272,8 +272,9 @@ instance Applicative (Logger l) where
 -- >>> (\a -> Logger (listh [4,5]) (a+3)) =<< Logger (listh [1,2]) 3
 -- Logger [1,2,4,5] 6
 instance Monad (Logger l) where
-  (=<<) =
-    error "todo: Course.StateT (=<<)#instance (Logger l)"
+  f =<< (Logger l x) =
+    let (Logger l' r) = f x
+    in (Logger (l ++ l') r)
 
 -- | A utility function for producing a `Logger` with one log value.
 --
@@ -283,8 +284,8 @@ log1 ::
   l
   -> a
   -> Logger l a
-log1 =
-  error "todo: Course.StateT#log1"
+log1 l x =
+  Logger (l :. Nil) x
 
 -- | Remove all duplicate integers from a list. Produce a log as you go.
 -- If there is an element above 100, then abort the entire computation and produce no result.
@@ -305,4 +306,13 @@ distinctG ::
   List a
   -> Logger Chars (Optional (List a))
 distinctG =
-  error "todo: Course.StateT#distinctG"
+  runOptionalT . flip evalT S.empty .
+  filtering (\x -> StateT $ \s ->
+                fstF (case x of
+                    y | y > 100 -> OptionalT $ log1 (listh "aborting > 100: " ++ (show' x)) Empty
+                    y | even y -> OptionalT $ log1 (listh "even number: " ++ (show' x)) $ pure (not $ S.member x s)
+                    _ -> OptionalT $ pure $ pure $ (not $ S.member x s)
+                ,S.insert x s))
+  where
+    fstF :: Monad m => (m a, b) -> m (a, b)
+    fstF (f, x) = (flip (,) x) <$> f
