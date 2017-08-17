@@ -33,4 +33,4 @@ instance (Monad f, Monad g) =>
   Monad (Compose f g) where
 -- Implement the (=<<) function for a Monad instance for Compose
   f =<< (Compose x) =
-    (\g -> f =<< g) =<< x
+    error "impossible, need flatten or other like function"
