@@ -538,8 +538,12 @@ nth ::
   Int
   -> ListZipper a
   -> MaybeListZipper a
-nth =
-  error "todo: Course.ListZipper#nth"
+nth n (ListZipper l x r) =
+  case n of
+    0 -> IsZ (ListZipper l x r)
+    _ -> case r of
+           Nil -> IsNotZ
+           (h :. t) -> nth (n-1) (ListZipper (x :. l) h t)
 
 -- | Return the absolute position of the current focus in the zipper.
 --
@@ -550,8 +554,8 @@ nth =
 index ::
   ListZipper a
   -> Int
-index =
-  error "todo: Course.ListZipper#index"
+index (ListZipper l _ _) =
+  length l
 
 -- | Move the focus to the end of the zipper.
 --
@@ -564,8 +568,10 @@ index =
 end ::
   ListZipper a
   -> ListZipper a
-end =
-  error "todo: Course.ListZipper#end"
+end res@(ListZipper l x r) =
+  case r of
+    Nil -> res
+    (h :. t) -> end (ListZipper (x :. l) h t)
 
 -- | Move the focus to the start of the zipper.
 --
@@ -578,8 +584,10 @@ end =
 start ::
   ListZipper a
   -> ListZipper a
-start =
-  error "todo: Course.ListZipper#start"
+start res@(ListZipper l x r) =
+  case l of
+    Nil -> res
+    (h :. t) -> ListZipper t h (x :. r)
 
 -- | Delete the current focus and pull the left values to take the empty position.
 --
@@ -591,8 +599,10 @@ start =
 deletePullLeft ::
   ListZipper a
   -> MaybeListZipper a
-deletePullLeft =
-  error "todo: Course.ListZipper#deletePullLeft"
+deletePullLeft (ListZipper l _ r) =
+  case l of
+    Nil -> IsNotZ
+    (h :. t) -> IsZ $ (ListZipper t h r)
 
 -- | Delete the current focus and pull the right values to take the empty position.
 --
@@ -604,8 +614,10 @@ deletePullLeft =
 deletePullRight ::
   ListZipper a
   -> MaybeListZipper a
-deletePullRight =
-  error "todo: Course.ListZipper#deletePullRight"
+deletePullRight (ListZipper l _ r) =
+  case r of
+    Nil -> IsNotZ
+    (h :. t) -> IsZ $ (ListZipper l h t)
 
 -- | Insert at the current focus and push the left values to make way for the new position.
 --
@@ -620,8 +632,8 @@ insertPushLeft ::
   a
   -> ListZipper a
   -> ListZipper a
-insertPushLeft =
-  error "todo: Course.ListZipper#insertPushLeft"
+insertPushLeft n (ListZipper l x r) =
+  ListZipper (x :. l) n r
 
 -- | Insert at the current focus and push the right values to make way for the new position.
 --
@@ -636,8 +648,8 @@ insertPushRight ::
   a
   -> ListZipper a
   -> ListZipper a
-insertPushRight =
-  error "todo: Course.ListZipper#insertPushRight"
+insertPushRight n (ListZipper l x r) =
+  ListZipper l n (x :. r)
 
 -- | Implement the `Applicative` instance for `ListZipper`.
 -- `pure` produces an infinite list zipper (to both left and right).
@@ -651,11 +663,11 @@ insertPushRight =
 -- [5,12] >8< [15,24,12]
 instance Applicative ListZipper where
 -- /Tip:/ Use @List#repeat@.
-  pure =
-    error "todo: Course.ListZipper pure#instance ListZipper"
+  pure a =
+    ListZipper (repeat a) a (repeat a)
 -- /Tip:/ Use `zipWith`
-  (<*>) =
-    error "todo: Course.ListZipper (<*>)#instance ListZipper"
+  (ListZipper lf xf rf) <*> (ListZipper la xa ra) =
+    ListZipper (lf <*> la) (xf xa) (rf <*> ra)
 
 -- | Implement the `Applicative` instance for `MaybeListZipper`.
 --
@@ -679,9 +691,10 @@ instance Applicative ListZipper where
 -- ><
 instance Applicative MaybeListZipper where
   pure =
-    error "todo: Course.ListZipper pure#instance MaybeListZipper"
-  (<*>) =
-    error "todo: Course.ListZipper (<*>)#instance MaybeListZipper"
+    IsZ . pure
+  (IsZ f) <*> (IsZ x) =
+    IsZ $ f <*> x
+  _ <*> _ = IsNotZ
 
 -- | Implement the `Extend` instance for `ListZipper`.
 -- This implementation "visits" every possible zipper value derivable from a given zipper (i.e. all zippers to the left and right).
@@ -691,8 +704,8 @@ instance Applicative MaybeListZipper where
 -- >>> id <<= (zipper [2,1] 3 [4,5])
 -- [[1] >2< [3,4,5],[] >1< [2,3,4,5]] >[2,1] >3< [4,5]< [[3,2,1] >4< [5],[4,3,2,1] >5< []]
 instance Extend ListZipper where
-  (<<=) =
-    error "todo: Course.ListZipper (<<=)#instance ListZipper"
+  f <<= x =
+    error ""
 
 -- | Implement the `Extend` instance for `MaybeListZipper`.
 -- This instance will use the `Extend` instance for `ListZipper`.
