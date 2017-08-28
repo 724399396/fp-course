@@ -40,7 +40,7 @@ instance Show a => Show (ParseResult a) where
     stringconcat ["Unexpected string: ", show s]
   show (Result i a) =
     stringconcat ["Result >", hlist i, "< ", show a]
-  
+
 instance Functor ParseResult where
   _ <$> UnexpectedEof =
     UnexpectedEof
@@ -124,8 +124,8 @@ natural =
 valueParser ::
   a
   -> Parser a
-valueParser =
-  error "todo: Course.Parser#valueParser"
+valueParser a =
+  P $ (\i -> Result i a)
 
 -- | Return a parser that succeeds with a character off the input or fails with an error if the input is empty.
 --
@@ -137,7 +137,9 @@ valueParser =
 character ::
   Parser Char
 character =
-  error "todo: Course.Parser#character"
+  P $ (\i -> case i of
+               Nil -> UnexpectedEof
+               h :. t -> Result t h)
 
 -- | Return a parser that maps any succeeding result with the given function.
 --
@@ -150,8 +152,12 @@ mapParser ::
   (a -> b)
   -> Parser a
   -> Parser b
-mapParser =
-  error "todo: Course.Parser#mapParser"
+mapParser f (P x) = P $ (\i -> case x i of
+                                 Result t h -> Result t (f h)
+                                 UnexpectedEof -> UnexpectedEof
+                                 ExpectedEof l -> ExpectedEof l
+                                 UnexpectedChar l -> UnexpectedChar l
+                                 UnexpectedString l -> UnexpectedString l)
 
 -- | Return a parser that puts its input into the given parser and
 --
