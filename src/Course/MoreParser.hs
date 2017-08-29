@@ -39,7 +39,7 @@ P p <.> i =
 spaces ::
   Parser Chars
 spaces =
-  error "todo: Course.MoreParser#spaces"
+  list space
 
 -- | Write a function that applies the given parser, then parses 0 or more spaces,
 -- then produces the result of the original parser.
@@ -54,8 +54,10 @@ spaces =
 tok ::
   Parser a
   -> Parser a
-tok =
-  error "todo: Course.MoreParser#tok"
+tok pa =
+  do a <- pa
+     _ <- spaces
+     return a
 
 -- | Write a function that parses the given char followed by 0 or more spaces.
 --
@@ -64,7 +66,7 @@ tok =
 --
 -- >>> isErrorResult (parse (charTok 'a') "dabc")
 -- True
--- 
+--
 -- /Tip:/ Use `tok` and `is`.
 charTok ::
   Char
