@@ -590,12 +590,12 @@ phoneParser =
 personParser ::
   Parser Person
 personParser =
-  bindParser (\age -> space >>>
-             bindParser (\firstName -> space >>>
-                        bindParser (\surname -> space >>>
-                                   bindParser (\smoker -> space >>>
-                                              bindParser (\phone -> space >>>
-                                                           (valueParser $ Person age firstName surname smoker phone))
+  bindParser (\a -> space >>>
+             bindParser (\f -> space >>>
+                        bindParser (\sur -> space >>>
+                                   bindParser (\s -> space >>>
+                                              bindParser (\p -> space >>>
+                                                           (valueParser $ Person a f sur s p))
                                                 phoneParser)
                                    smokerParser)
                         surnameParser)
