@@ -217,7 +217,9 @@ between ::
   -> Parser a
   -> Parser a
 between l r x =
-  l >> r >> x
+  do y <- l >> x
+     r
+     return y
 
 -- | Write a function that applies the given parser in between the two given characters.
 --
