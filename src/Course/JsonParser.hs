@@ -109,16 +109,20 @@ toSpecialCharacter c =
 -- True
 jsonString ::
   Parser Chars
-jsonString =
-  let
-    hexParser, specialCharacterParser :: Parser Char
-    hexParser = is '\\' >> is 'u' >> hex
-    specialCharacterParser = do x <- is '\\' >> character
-                                case fromSpecialCharacter <$> toSpecialCharacter x of
-                                               Full y -> is y
-                                               Empty -> unexpectedCharParser x
+jsonString = let
+  str = do c1 <- character
+           if c1 == '\\'
+             then do c2 <- character
+                     if c2 == 'u'
+                       then hex
+                       else case fromSpecialCharacter <$> toSpecialCharacter c2 of
+                              Full y -> return y
+                              Empty -> unexpectedCharParser c2
+             else if c1 == '"'
+                  then unexpectedCharParser '"'
+                  else return c1
   in
-    between (is '"') (is '"') (list $ (hexParser ||| specialCharacterParser ||| (satisfy (/= '"'))))
+    between (is '"') (charTok '"') (list str)
 
 -- | Parse a JSON rational.
 --
@@ -235,7 +239,7 @@ jsonObject ::
   Parser Assoc
 jsonObject =
   betweenSepbyComma '{' '}' (do k <- jsonString
-                                charTok ','
+                                charTok ':'
                                 v <- jsonValue
                                 return (k, v))
 
@@ -254,13 +258,14 @@ jsonObject =
 jsonValue ::
   Parser JsonValue
 jsonValue =
-  (JsonObject <$> jsonObject) |||
+  spaces *>
+  ((JsonObject <$> jsonObject) |||
   (JsonArray <$> jsonArray) |||
   (const JsonTrue <$> jsonTrue) |||
   (const JsonFalse <$> jsonFalse) |||
   (const JsonNull <$> jsonNull) |||
   (JsonRational <$> jsonNumber) |||
-  (JsonString <$> jsonString)
+  (JsonString <$> jsonString))
 
 
 -- | Read a file into a JSON value.

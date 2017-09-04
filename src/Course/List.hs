@@ -291,7 +291,7 @@ find p (h :. t) = if p h
 lengthGT4 ::
   List a
   -> Bool
-lengthGT4 = (>4) . length
+lengthGT4 = (>4) . length . take 5
 
 -- | Reverse a list.
 --
