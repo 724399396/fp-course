@@ -324,50 +324,52 @@ chunksOf :: Int -> List a -> List (List a)
 chunksOf _ Nil = Nil
 chunksOf n x = (take n x) :. (chunksOf n (drop n x))
 
-strConcat x y z = y :. x :. z
+append :: List a -> a -> List a
+append xs x = xs ++ (x :. Nil)
+
+strConcat x y z = y :. x :. z :. Nil
 
 lookup :: (Eq a) => (a -> Bool) -> List a -> Optional a
 lookup _ Nil = Empty
 lookup f (y :. ys) = if (f y) then Full y else lookup f ys
 
-aboveTen :: Int -> Optional (List a)
+aboveTen, aboveTwenty :: Int -> Optional Chars
 aboveTen x = let aboveTenList = listh [(10, "ten"), (11, "eleven"), (12, "twelve")]
-             in ((:. Nil) . snd) <$> lookup ((== x) . fst) aboveTenList
+             in snd <$> lookup ((== x) . fst) aboveTenList
 
-aboveTwenty x = case x of
-                        2 -> Full "twenty"
-                        3 -> Full "thirty"
-                        4 -> Full "fourty"
-                        _ -> Empty
+aboveTwenty x = let list = listh [(2, "twenty"), (3, "thirty"), (4, "fourty")]
+             in snd <$> lookup ((== x) . fst) list
 
 single :: Char -> Optional Chars
 single x = showDigit <$> fromChar x
 
 noUnit :: Chars -> Optional (List Chars)
-noUnit x = do i <- read x
+noUnit x = do i <- (read x :: Optional Int)
               let cx = show i
               sequence $ single <$> listh cx
-noUnit w@('1' :. _ :. Nil) = aboveTen =<< (read w)
-noUnit (x :. y :. Nil) = sequence $ (strConcat "-") <$> (aboveTwenty =<< read (x :. Nil)) <*> single y
-noUnit (x :. y :. z :. Nil) = (\h u -> case u of
-                                         "zero " -> " hundred "
-                                         _ -> " hundred and ") <$> single x <*> noUnit (y :. z :. Nil)
-noUnit _ = Full "zero"
+noUnit w@('1' :. _ :. Nil) = append Nil <$> (aboveTen =<< (read w))
+noUnit (x :. y :. Nil) = (strConcat "-") <$> (aboveTwenty =<< read (x :. Nil)) <*> single y
+noUnit (x :. y :. z :. Nil) = (\h u -> h :. (case u of
+                                         "zero" :. Nil -> "hundred" :. Nil
+                                         _ -> "hundred and" :. Nil) ++ u) <$> single x <*> noUnit (y :. z :. Nil)
+noUnit _ = Empty
 
-dollars ::
-  Chars
-  -> Chars
+dollars :: Chars -> Chars
 dollars str =
   let legalFilter = filter ((/= Empty) . fromChar)
       (intPart, decPart) = break ('.' ==) str
+      intStr, decStr :: List Chars
       intStr = case sequence $ noUnit <$> chunksOf 3 (legalFilter intPart) of
-                 Empty -> "zero "
-                 Full Nil -> "zero "
-                 Full x -> join $ map (uncurry $ strConcat " ") $ zip x illion
+                 Empty -> "zero" :. Nil
+                 Full Nil -> "zero" :. Nil
+                 Full x -> join $ zipWith (\xs y -> xs ++ (y :. Nil)) x illion
       decStr = case noUnit $ take 2 (legalFilter decPart ++ replicate 2 '0') of
-                                       Empty -> "zero "
-                                       Full x -> x ++ " "
+                 Empty -> "zero" :. Nil
+                 Full x -> x
       unit x = case x of
-                 "one " -> ""
+                 "one" :. _ -> ""
                  _ -> "s"
-  in intStr ++ "dollar" ++ (unit intStr) ++ " and " ++ decStr ++ "cent" ++ (unit decStr)
+      spaceConcat :: List Chars -> Chars
+      spaceConcat Nil = ""
+      spaceConcat (x :. xs) = x ++ " " ++ (spaceConcat xs)
+  in spaceConcat $ (intStr ++ (("dollar" ++ (unit intStr)) :. "and" :. decStr) ++ (("cent" ++ (unit decStr)) :. Nil))
