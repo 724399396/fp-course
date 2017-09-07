@@ -320,56 +320,64 @@ fromChar _ =
 --
 -- >>> dollars "456789123456789012345678901234567890123456789012345678901234567890.12"
 -- "four hundred and fifty-six vigintillion seven hundred and eighty-nine novemdecillion one hundred and twenty-three octodecillion four hundred and fifty-six septendecillion seven hundred and eighty-nine sexdecillion twelve quindecillion three hundred and forty-five quattuordecillion six hundred and seventy-eight tredecillion nine hundred and one duodecillion two hundred and thirty-four undecillion five hundred and sixty-seven decillion eight hundred and ninety nonillion one hundred and twenty-three octillion four hundred and fifty-six septillion seven hundred and eighty-nine sextillion twelve quintillion three hundred and forty-five quadrillion six hundred and seventy-eight trillion nine hundred and one billion two hundred and thirty-four million five hundred and sixty-seven thousand eight hundred and ninety dollars and twelve cents"
-chunksOf :: Int -> List a -> List (List a)
-chunksOf _ Nil = Nil
-chunksOf n x = (take n x) :. (chunksOf n (drop n x))
+charsToDigits :: Chars -> Optional (List Digit3)
+charsToDigits = let
+  chunksOf :: Int -> List a -> List (List a)
+  chunksOf _ Nil = Nil
+  chunksOf n x = (take n x) :. (chunksOf n (drop n x))
+  chunksToDigit :: Chars -> Optional Digit3
+  chunksToDigit (x :. Nil) = D1 <$> fromChar x
+  chunksToDigit (x :. y :. Nil) = D2 <$> fromChar x <*> fromChar y
+  chunksToDigit (x :. y :. z :. Nil) = D3 <$> fromChar x <*> fromChar y <*> fromChar z
+  chunksToDigit _ = Empty
+  in (sequence . (<$>) chunksToDigit) . chunksOf 3
 
-append :: List a -> a -> List a
-append xs x = xs ++ (x :. Nil)
-
-strConcat x y z = y :. x :. z :. Nil
+optionalToList :: Optional a -> List a
+optionalToList Empty = Nil
+optionalToList (Full x) = x :. Nil
 
 lookup :: (Eq a) => (a -> Bool) -> List a -> Optional a
 lookup _ Nil = Empty
 lookup f (y :. ys) = if (f y) then Full y else lookup f ys
 
-aboveTen, aboveTwenty :: Int -> Optional Chars
-aboveTen x = let aboveTenList = listh [(10, "ten"), (11, "eleven"), (12, "twelve")]
+aboveTen, aboveTwenty :: Digit -> Optional Chars
+aboveTen x = let aboveTenList = listh [(Zero, "ten"), (One, "eleven"), (Two, "twelve")]
              in snd <$> lookup ((== x) . fst) aboveTenList
 
-aboveTwenty x = let list = listh [(2, "twenty"), (3, "thirty"), (4, "fourty")]
+aboveTwenty x = let list = listh [(Two, "twenty"), (Three, "thirty"), (Four, "fourty")]
              in snd <$> lookup ((== x) . fst) list
 
 single :: Char -> Optional Chars
 single x = showDigit <$> fromChar x
 
-noUnit :: Chars -> Optional (List Chars)
-noUnit x = do i <- (read x :: Optional Int)
-              let cx = show i
-              sequence $ single <$> listh cx
-noUnit w@('1' :. _ :. Nil) = append Nil <$> (aboveTen =<< (read w))
-noUnit (x :. y :. Nil) = (strConcat "-") <$> (aboveTwenty =<< read (x :. Nil)) <*> single y
-noUnit (x :. y :. z :. Nil) = (\h u -> h :. (case u of
-                                         "zero" :. Nil -> "hundred" :. Nil
-                                         _ -> "hundred and" :. Nil) ++ u) <$> single x <*> noUnit (y :. z :. Nil)
-noUnit _ = Empty
+noUnit :: Digit3 -> List Chars
+noUnit (D1 x) = (showDigit x) :. Nil
+noUnit (D2 x y)
+  | x == Zero = noUnit (D1 x)
+  | x == One = optionalToList $ aboveTen y
+  | otherwise = (\m n -> join $ (m ++ "-" ++ n) :. Nil) <$> (optionalToList $ aboveTwenty x) <*> noUnit (D1 y)
+noUnit (D3 x y z) = (\h u -> h ++ (case u of
+                                         Nil -> (fromString "hundred") :. Nil
+                                         _ -> (fromString "hundred and") :. Nil) ++ u) <$> noUnit (D1 x) <*> noUnit (D2 y z)
+noUnit _ = Nil
 
 dollars :: Chars -> Chars
 dollars str =
   let legalFilter = filter ((/= Empty) . fromChar)
       (intPart, decPart) = break ('.' ==) str
       intStr, decStr :: List Chars
-      intStr = case sequence $ noUnit <$> chunksOf 3 (legalFilter intPart) of
+      intStr = case ((<$>) noUnit) <$> charsToDigits (legalFilter intPart) of
                  Empty -> "zero" :. Nil
                  Full Nil -> "zero" :. Nil
                  Full x -> join $ zipWith (\xs y -> xs ++ (y :. Nil)) x illion
-      decStr = case noUnit $ take 2 (legalFilter decPart ++ replicate 2 '0') of
+      decStr = case ((<$>) noUnit) <$> (charsToDigits $ take 2 (legalFilter decPart ++ replicate 2 '0')) of
                  Empty -> "zero" :. Nil
-                 Full x -> x
+                 Full x -> join x
       unit x = case x of
                  "one" :. _ -> ""
                  _ -> "s"
       spaceConcat :: List Chars -> Chars
       spaceConcat Nil = ""
+      spaceConcat (x :. Nil) = x
       spaceConcat (x :. xs) = x ++ " " ++ (spaceConcat xs)
-  in spaceConcat $ (intStr ++ (("dollar" ++ (unit intStr)) :. "and" :. decStr) ++ (("cent" ++ (unit decStr)) :. Nil))
+  in spaceConcat $ filter (/= "") $ (intStr ++ (("dollar" ++ (unit intStr)) :. "and" :. decStr) ++ (("cent" ++ (unit decStr)) :. Nil))
