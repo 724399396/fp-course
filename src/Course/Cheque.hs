@@ -341,26 +341,31 @@ lookup _ Nil = Empty
 lookup f (y :. ys) = if (f y) then Full y else lookup f ys
 
 aboveTen, aboveTwenty :: Digit -> Optional Chars
-aboveTen x = let aboveTenList = listh [(Zero, "ten"), (One, "eleven"), (Two, "twelve")]
+aboveTen x = let aboveTenList = listh [(Zero, "ten"), (One, "eleven"), (Two, "twelve"), (Three, "thirteen"), (Four, "fourteen"), (Five, "fifteen"), (Six, "sixteen"), (Seven, "seventeen"), (Eight, "eighteen"), (Nine, "ninteen")]
              in snd <$> lookup ((== x) . fst) aboveTenList
 
-aboveTwenty x = let list = listh [(Two, "twenty"), (Three, "thirty"), (Four, "fourty"), (Five, "fifty")]
+aboveTwenty x = let list = listh [(Two, "twenty"), (Three, "thirty"), (Four, "forty"), (Five, "fifty"), (Six, "sixty"), (Seven, "seventy"), (Eight, "eighty"), (Nine, "ninety")]
              in snd <$> lookup ((== x) . fst) list
+
+autoConcat :: Chars -> Chars -> List Chars -> List Chars -> List Chars
+autoConcat x y l r = case (l, r) of
+                     ("zero" :. Nil, "zero" :. Nil) -> Nil
+                     ("zero" :. Nil, _) -> r
+                     (_, "zero" :. Nil) -> l ++ (y :. Nil)
+                     (_, h2 :. t2) -> case reverse l of
+                                        (h1 :. t1) -> (reverse t1) ++ ((h1 ++ x ++ h2) :. t2)
+                                        _ -> Nil
+                     _ -> Nil
 
 noUnit :: Digit3 -> List Chars
 noUnit (D1 x) = (showDigit x) :. Nil
 noUnit (D2 x y)
   | x == Zero = noUnit (D1 y)
   | x == One = optionalToList $ aboveTen y
-  | otherwise = (\m n -> join $ (m ++ "-" ++ n) :. Nil) <$> (optionalToList $ aboveTwenty x) <*> noUnit (D1 y)
+  | otherwise = autoConcat "-" ""  (optionalToList $ aboveTwenty x) (noUnit (D1 y))
 noUnit (D3 x y z) = let h = noUnit (D1 x)
                         u = noUnit (D2 y z)
-                    in (case (h, u) of
-                                ("zero" :. Nil, "zero" :. Nil) -> Nil
-                                ("zero" :. Nil, _) -> u
-                                (_, "zero" :. Nil) -> h ++ ("hundred" :. Nil)
-                                _ -> h ++ ("hundred and" :. u))
-
+                    in autoConcat " hundred and " "hundred" h u
 dollars :: Chars -> Chars
 dollars str =
   let legalFilter = filter ((/= Empty) . fromChar)
