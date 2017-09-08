@@ -344,7 +344,7 @@ aboveTen, aboveTwenty :: Digit -> Optional Chars
 aboveTen x = let aboveTenList = listh [(Zero, "ten"), (One, "eleven"), (Two, "twelve")]
              in snd <$> lookup ((== x) . fst) aboveTenList
 
-aboveTwenty x = let list = listh [(Two, "twenty"), (Three, "thirty"), (Four, "fourty")]
+aboveTwenty x = let list = listh [(Two, "twenty"), (Three, "thirty"), (Four, "fourty"), (Five, "fifty")]
              in snd <$> lookup ((== x) . fst) list
 
 noUnit :: Digit3 -> List Chars
@@ -355,9 +355,11 @@ noUnit (D2 x y)
   | otherwise = (\m n -> join $ (m ++ "-" ++ n) :. Nil) <$> (optionalToList $ aboveTwenty x) <*> noUnit (D1 y)
 noUnit (D3 x y z) = let h = noUnit (D1 x)
                         u = noUnit (D2 y z)
-                    in h ++ (case h of
-                                "zero" :. Nil -> Nil
-                                _ -> "hundred and" :. u)
+                    in (case (h, u) of
+                                ("zero" :. Nil, "zero" :. Nil) -> Nil
+                                ("zero" :. Nil, _) -> u
+                                (_, "zero" :. Nil) -> h ++ ("hundred" :. Nil)
+                                _ -> h ++ ("hundred and" :. u))
 
 dollars :: Chars -> Chars
 dollars str =
@@ -368,7 +370,7 @@ dollars str =
       intStr = noEmpty $ case ((<$>) noUnit) <$> charsToDigits (legalFilter intPart) of
                            Empty -> "zero" :. Nil
                            Full Nil -> "zero" :. Nil
-                           Full x -> join $ zipWith (\xs y -> xs ++ (y :. Nil)) x (reverse illion)
+                           Full x -> join $ reverse $ zipWith (\xs y -> if (xs == Nil) then Nil else xs ++ (y :. Nil)) (reverse x) illion
       decStr = noEmpty $ case ((<$>) noUnit) <$> (charsToDigits $ take (2 :: Integer) (legalFilter decPart ++ replicate (2 :: Integer) '0')) of
                            Empty -> "zero" :. Nil
                            Full x -> join x
